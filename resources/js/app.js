@@ -33,6 +33,7 @@ const els = {
   tbody: document.getElementById('tbody'),
   log: document.getElementById('log'),
   hint: document.getElementById('hint'),
+  progress: document.getElementById('progress'),
   btnTheme: document.getElementById('btnTheme')
 };
 
@@ -84,23 +85,27 @@ async function preview() {
   const dst = norm(els.dst.value);
   if (!src || !dst) return toast("Укажи SRC и DST 💛");
   await saveSession(src, dst);
+  showProgress('indeterminate');
+  try {
+    // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
+    // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
+    const ps = `powershell -NoProfile -Command `
+    + `"$OutputEncoding=[Text.UTF8Encoding]::new(); `
+    + `[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); `
+    + `robocopy '${src}' '${dst}' /L /MIR /S /NJH /NJS /FP /NDL"`;
+    const r = await Neutralino.os.execCommand(ps);
+    console.log(r.stdOut);
+    const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
-  // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
-  // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
-  const ps = `powershell -NoProfile -Command `
-  + `"$OutputEncoding=[Text.UTF8Encoding]::new(); `
-  + `[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); `
-  + `robocopy '${src}' '${dst}' /L /MIR /S /NJH /NJS /FP /NDL"`;
-  const r = await Neutralino.os.execCommand(ps);
-  console.log(r.stdOut);
-  const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-  rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel));
-  // по умолчанию выделяем только New/Updated
-  rows.forEach(x => x.selected = (x.status === 'New' || x.status === 'Updated'));
-  els.chkSelectAll.checked = true;
-  renderTable();
-  hint(`Найдено: ${rows.length}. Отмечены к копированию: ${rows.filter(x=>x.selected).length}`);
+    rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel));
+    // по умолчанию выделяем только New/Updated
+    rows.forEach(x => x.selected = (x.status === 'New' || x.status === 'Updated'));
+    els.chkSelectAll.checked = true;
+    renderTable();
+    hint(`Найдено: ${rows.length}. Отмечены к копированию: ${rows.filter(x=>x.selected).length}`);
+  } finally {
+    hideProgress();
+  }
 }
 
 async function parseRobocopy(lines, src, dst) {
@@ -184,10 +189,15 @@ async function copyAll() {
   const xd = settings.dirs.length ? (' /XD ' + settings.dirs.map(q).join(' ')) : '';
 
   const cmd = `robocopy "${src}" "${dst}" /MIR /R:1 /W:1 /MT:8 /NFL /NDL /NP${xf}${xd}`;
-  log(`> ${cmd}\n`);
-  const r = await Neutralino.os.execCommand(cmd);
-  log(r.stdOut || r.stdErr || 'done');
-  toast('Готово ✨');
+  showProgress('indeterminate');
+  try {
+    log(`> ${cmd}\n`);
+    const r = await Neutralino.os.execCommand(cmd);
+    log(r.stdOut || r.stdErr || 'done');
+    toast('Готово ✨');
+  } finally {
+    hideProgress();
+  }
 }
 
 async function copySelected() {
@@ -197,25 +207,32 @@ async function copySelected() {
 
   if (items.length === 0) return toast('Ничего не выбрано');
 
+  showProgress('determinate', items.length);
+  let done = 0;
   // Простая логика:
   // - New/Updated: Copy-Item файла
   // - OnlyInDst: удаляем файл в DST
-  for (const it of items) {
-    if (it.status === 'OnlyInDst') {
-      const target = winPath(join(dst, it.rel));
-      const del = `powershell -NoProfile -Command "if(Test-Path -LiteralPath '${psq(target)}'){ Remove-Item -LiteralPath '${psq(target)}' -Force }"`;
-      await Neutralino.os.execCommand(del);
-      log(`файл ${target} удалён\n`);
-    } else {
-      const srcFile = winPath(join(src, it.rel));
-      const dstFile = winPath(join(dst, it.rel));
-      const dstDir = winPath(dirOf(dstFile));
-      const cmd = `powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '${psq(dstDir)}' | Out-Null; Copy-Item -LiteralPath '${psq(srcFile)}' -Destination '${psq(dstFile)}' -Force"`;
-      await Neutralino.os.execCommand(cmd);
-      log(`файл ${srcFile} скопирован в ${dstFile}\n`);
+  try {
+    for (const it of items) {
+      if (it.status === 'OnlyInDst') {
+        const target = winPath(join(dst, it.rel));
+        const del = `powershell -NoProfile -Command "if(Test-Path -LiteralPath '${psq(target)}'){ Remove-Item -LiteralPath '${psq(target)}' -Force }"`;
+        await Neutralino.os.execCommand(del);
+        log(`файл ${target} удалён\n`);
+      } else {
+        const srcFile = winPath(join(src, it.rel));
+        const dstFile = winPath(join(dst, it.rel));
+        const dstDir = winPath(dirOf(dstFile));
+        const cmd = `powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '${psq(dstDir)}' | Out-Null; Copy-Item -LiteralPath '${psq(srcFile)}' -Destination '${psq(dstFile)}' -Force"`;
+        await Neutralino.os.execCommand(cmd);
+        log(`файл ${srcFile} скопирован в ${dstFile}\n`);
+      }
+      updateProgress(++done);
     }
+    toast('Готово ✨');
+  } finally {
+    hideProgress();
   }
-  toast('Готово ✨');
 }
 
 function setAllSelected(v){ rows.forEach(r => r.selected = v); renderTable(); }
@@ -285,6 +302,22 @@ function parseIgnoreText(text){
 function log(s){ els.log.textContent += s; els.log.scrollTop = els.log.scrollHeight; }
 function hint(s){ els.hint.textContent = s; }
 function toast(msg){ Neutralino.os.showMessageBox('Syncer', msg); }
+function showProgress(type, max){
+  els.progress.style.display = 'block';
+  if(type === 'indeterminate'){
+    els.progress.removeAttribute('value');
+    els.progress.removeAttribute('max');
+  }else{
+    els.progress.value = 0;
+    els.progress.max = max;
+  }
+}
+function updateProgress(val){
+  if(els.progress.hasAttribute('value')) els.progress.value = val;
+}
+function hideProgress(){
+  els.progress.style.display = 'none';
+}
 async function saveSession(src,dst){
   try{ await Neutralino.storage.setData('robogui', JSON.stringify({src,dst,ts:Date.now()})); }catch{}
 }
