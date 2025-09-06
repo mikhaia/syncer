@@ -221,7 +221,7 @@ function setAllSelected(v){ rows.forEach(r => r.selected = v); renderTable(); }
 
 // ===== Helpers =====
 function formatKB(bytes){
-  return (bytes / 1024).toFixed(2).replace('.', ',') + ' Кб';
+  return (bytes / 1024).toFixed(2) + ' Кб';
 }
 function norm(p){ return (p || '').replace(/\//g, '\\').replace(/[\\]+$/,''); }
 function winPath(p){ return p.replace(/\//g,'\\'); }
