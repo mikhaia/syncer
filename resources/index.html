@@ -4,25 +4,31 @@
   <meta charset="utf-8" />
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>RoboGUI — preview & copy</title>
+  <title>Syncer — preview & copy</title>
   <link rel="stylesheet" href="pico.min.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <nav class="topbar container">
-    <button id="btnSettings" class="icon-btn"><span class="material-icons">settings</span>Настройки</button>
-    <button id="btnExit" class="icon-btn"><span class="material-icons">logout</span>Выход</button>
-  </nav>
   <main class="container">
-    <h3>RoboGUI — визуальный предпросмотр robocopy</h3>
-
     <div class="row">
-      <label>Source:</label>
-      <input id="src" type="text" placeholder="C:\\Users\\you\\work\\project" />
-      <button id="btnSrcBrowse" class="icon-btn"><span class="material-icons">folder_open</span></button>
-      <label>Dest:</label>
-      <input id="dst" type="text" placeholder="D:\\mirror\\project" />
-      <button id="btnDstBrowse" class="icon-btn"><span class="material-icons">folder_open</span></button>
+      <h3 class="col-8">Syncer — менеджер синхронизации файлов и папок</h3>
+      <div class="col-2 text-right">
+        <button id="btnSettings" title="Настройки"><span class="material-icons">settings</span></button>
+        <button id="btnExit" title="Выход"><span class="material-icons">logout</span></button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="row">
+        <label>SRC:</label>
+        <input id="src" type="text" placeholder="Source" class="m-0"/>
+        <button id="btnSrcBrowse" class="icon-btn"><span class="material-icons">folder_open</span></button>
+      </div>
+      <div class="row">
+        <label>DST:</label>
+        <input id="dst" type="text" placeholder="Destination" class="m-0"/>
+        <button id="btnDstBrowse" class="icon-btn"><span class="material-icons">folder_open</span></button>
+      </div>
     </div>
 
     <div class="row">
