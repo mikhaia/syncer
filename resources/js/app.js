@@ -1,17 +1,24 @@
 // 🧡 Простой и чистый код
 
-NL_ON('ready', () => {
+NL_ON('ready', async () => {
   // автозаполнение путей из последней сессии
   loadSession();
+  await loadSettings();
 });
 
 const els = {
   src: document.getElementById('src'),
   dst: document.getElementById('dst'),
-  exclude: document.getElementById('exclude'),
   btnPreview: document.getElementById('btnPreview'),
   btnCopyAll: document.getElementById('btnCopyAll'),
   btnCopySel: document.getElementById('btnCopySel'),
+  btnSettings: document.getElementById('btnSettings'),
+  btnExit: document.getElementById('btnExit'),
+  btnSrcBrowse: document.getElementById('btnSrcBrowse'),
+  btnDstBrowse: document.getElementById('btnDstBrowse'),
+  dlgSettings: document.getElementById('dlgSettings'),
+  txtIgnore: document.getElementById('txtIgnore'),
+  btnSaveSettings: document.getElementById('btnSaveSettings'),
   chkShowExtra: document.getElementById('chkShowExtra'),
   chkShowOlder: document.getElementById('chkShowOlder'),
   chkSelectAll: document.getElementById('chkSelectAll'),
@@ -21,6 +28,7 @@ const els = {
 };
 
 let rows = []; // [{status, rel, abs, from:'src'|'dst', selected}]
+let settings = { ignore: '' };
 
 els.btnPreview.onclick = preview;
 els.btnCopyAll.onclick = copyAll;
@@ -28,6 +36,25 @@ els.btnCopySel.onclick = copySelected;
 els.chkSelectAll.onchange = () => setAllSelected(els.chkSelectAll.checked);
 els.chkShowExtra.onchange = renderTable;
 els.chkShowOlder.onchange = renderTable;
+els.btnExit.onclick = () => Neutralino.app.exit();
+els.btnSettings.onclick = () => {
+  els.txtIgnore.value = settings.ignore;
+  els.dlgSettings.showModal();
+};
+els.btnSaveSettings.onclick = async () => {
+  settings.ignore = els.txtIgnore.value;
+  await saveSettings();
+  els.dlgSettings.close();
+  toast('Сохранено ✨');
+};
+els.btnSrcBrowse.onclick = async () => {
+  const p = await Neutralino.os.showFolderDialog('Source', { defaultPath: els.src.value });
+  if (p) els.src.value = p;
+};
+els.btnDstBrowse.onclick = async () => {
+  const p = await Neutralino.os.showFolderDialog('Dest', { defaultPath: els.dst.value });
+  if (p) els.dst.value = p;
+};
 
 async function preview() {
   const src = norm(els.src.value);
@@ -35,7 +62,7 @@ async function preview() {
   if (!src || !dst) return toast("Укажи SRC и DST 💛");
   await saveSession(src, dst);
 
-  const excl = parseExclude(els.exclude.value);
+  const excl = parseExclude(settings.ignore);
   // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
   // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
   const cmd = `robocopy "${src}" "${dst}" /L /MIR /S /NJH /NJS /FP /NDL`;
@@ -121,7 +148,7 @@ function renderTable() {
 async function copyAll() {
   const src = norm(els.src.value);
   const dst = norm(els.dst.value);
-  const excl = parseExclude(els.exclude.value);
+  const excl = parseExclude(settings.ignore);
 
   // Формируем /XF и /XD
   const xf = excl.files.length ? (' /XF ' + excl.files.map(q).join(' ')) : '';
@@ -201,5 +228,20 @@ async function loadSession(){
     const {src,dst} = JSON.parse(s);
     if(src) els.src.value = src;
     if(dst) els.dst.value = dst;
+  }catch{}
+}
+
+async function loadSettings(){
+  try{
+    const s = await Neutralino.storage.getData('robogui_settings');
+    if(!s) return;
+    const obj = JSON.parse(s);
+    settings = Object.assign(settings, obj);
+  }catch{}
+}
+
+async function saveSettings(){
+  try{
+    await Neutralino.storage.setData('robogui_settings', JSON.stringify(settings));
   }catch{}
 }
