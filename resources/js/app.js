@@ -25,7 +25,12 @@ const els = {
   btnSrcBrowse: document.getElementById('btnSrcBrowse'),
   btnDstBrowse: document.getElementById('btnDstBrowse'),
   dlgSettings: document.getElementById('dlgSettings'),
-  txtIgnore: document.getElementById('txtIgnore'),
+  lstIgnoreFiles: document.getElementById('lstIgnoreFiles'),
+  lstIgnoreDirs: document.getElementById('lstIgnoreDirs'),
+  txtIgnoreFile: document.getElementById('txtIgnoreFile'),
+  txtIgnoreDir: document.getElementById('txtIgnoreDir'),
+  btnAddIgnoreFile: document.getElementById('btnAddIgnoreFile'),
+  btnAddIgnoreDir: document.getElementById('btnAddIgnoreDir'),
   btnSaveSettings: document.getElementById('btnSaveSettings'),
   chkShowExtra: document.getElementById('chkShowExtra'),
   chkShowOlder: document.getElementById('chkShowOlder'),
@@ -38,7 +43,7 @@ const els = {
 };
 
 let rows = []; // [{status, rel, abs, size, from:'src'|'dst', selected}]
-let settings = { ignore: '' };
+let settings = { files: [], dirs: [] };
 let presets = [];
 
 els.btnPreview.onclick = preview;
@@ -57,15 +62,18 @@ els.selPreset.onchange = () => {
 };
 els.btnExit.onclick = () => Neutralino.app.exit();
 els.btnSettings.onclick = () => {
-  els.txtIgnore.value = settings.ignore;
+  renderIgnoreLists();
   els.dlgSettings.showModal();
 };
 els.btnSaveSettings.onclick = async () => {
-  settings.ignore = els.txtIgnore.value;
   await saveSettings();
   els.dlgSettings.close();
   toast('Сохранено ✨');
 };
+els.btnAddIgnoreFile.onclick = () => addIgnore('file');
+els.btnAddIgnoreDir.onclick = () => addIgnore('dir');
+els.lstIgnoreFiles.onclick = e => removeIgnore(e, 'file');
+els.lstIgnoreDirs.onclick = e => removeIgnore(e, 'dir');
 els.btnSrcBrowse.onclick = async () => {
   const p = await Neutralino.os.showFolderDialog('Source', { defaultPath: els.src.value });
   if (p) els.src.value = p;
@@ -81,7 +89,6 @@ async function preview() {
   if (!src || !dst) return toast("Укажи SRC и DST 💛");
   await saveSession(src, dst);
 
-  const excl = parseExclude(settings.ignore);
   // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
   // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
   const ps = `powershell -NoProfile -Command `
@@ -92,7 +99,7 @@ async function preview() {
   console.log(r.stdOut);
   const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
-  rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel, excl));
+  rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel));
   // по умолчанию выделяем только New/Updated
   rows.forEach(x => x.selected = (x.status === 'New' || x.status === 'Updated'));
   els.chkSelectAll.checked = true;
@@ -176,11 +183,9 @@ function renderTable() {
 async function copyAll() {
   const src = norm(els.src.value);
   const dst = norm(els.dst.value);
-  const excl = parseExclude(settings.ignore);
-
   // Формируем /XF и /XD
-  const xf = excl.files.length ? (' /XF ' + excl.files.map(q).join(' ')) : '';
-  const xd = excl.dirs.length ? (' /XD ' + excl.dirs.map(q).join(' ')) : '';
+  const xf = settings.files.length ? (' /XF ' + settings.files.map(q).join(' ')) : '';
+  const xd = settings.dirs.length ? (' /XD ' + settings.dirs.map(q).join(' ')) : '';
 
   const cmd = `robocopy "${src}" "${dst}" /MIR /R:1 /W:1 /MT:8 /NFL /NDL /NP${xf}${xd}`;
   log(`> ${cmd}\n`);
@@ -235,17 +240,51 @@ function toRel(full, root){
   if (A.startsWith(R)) return full.slice(R.length).replace(/^[\\\/]+/,'');
   return full;
 }
-function parseExclude(text){
+function isExcluded(rel){
+  const name = rel.split(/\\|\//).pop();
+  if (settings.files.includes(name)) return true;
+  const parts = rel.split(/\\|\//);
+  return parts.some(p => settings.dirs.includes(p));
+}
+function renderIgnoreLists(){
+  els.lstIgnoreFiles.innerHTML = '';
+  settings.files.forEach((f,i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<span class="col-8">${f}</span><button data-idx="${i}" class="icon-btn"><span class="material-icons">close</span></button>`;
+    els.lstIgnoreFiles.appendChild(row);
+  });
+  els.lstIgnoreDirs.innerHTML = '';
+  settings.dirs.forEach((d,i) => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<span class="col-8">${d}</span><button data-idx="${i}" class="icon-btn"><span class="material-icons">close</span></button>`;
+    els.lstIgnoreDirs.appendChild(row);
+  });
+}
+function addIgnore(type){
+  const input = type === 'file' ? els.txtIgnoreFile : els.txtIgnoreDir;
+  const val = input.value.trim();
+  if(!val) return;
+  const arr = type === 'file' ? settings.files : settings.dirs;
+  if(!arr.includes(val)) arr.push(val);
+  input.value = '';
+  renderIgnoreLists();
+}
+function removeIgnore(e, type){
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  const idx = parseInt(btn.dataset.idx,10);
+  if(isNaN(idx)) return;
+  const arr = type === 'file' ? settings.files : settings.dirs;
+  arr.splice(idx,1);
+  renderIgnoreLists();
+}
+function parseIgnoreText(text){
   const arr = (text || '').split(',').map(s => s.trim()).filter(Boolean);
   const files = [], dirs = [];
-  for (const a of arr){ if (a.includes('.')) files.push(a); else dirs.push(a); }
-  return { files, dirs };
-}
-function isExcluded(rel, excl){
-  const name = rel.split(/\\|\//).pop();
-  if (excl.files.includes(name)) return true;
-  const parts = rel.split(/\\|\//);
-  return parts.some(p => excl.dirs.includes(p));
+  for (const a of arr){ if(a.includes('.')) files.push(a); else dirs.push(a); }
+  return {files, dirs};
 }
 function log(s){ els.log.textContent += s; els.log.scrollTop = els.log.scrollHeight; }
 function hint(s){ els.hint.textContent = s; }
@@ -267,7 +306,13 @@ async function loadSettings(){
     const s = await Neutralino.storage.getData('robogui_settings');
     if(!s) return;
     const obj = JSON.parse(s);
-    settings = Object.assign(settings, obj);
+    if(Array.isArray(obj.files)) settings.files = obj.files;
+    if(Array.isArray(obj.dirs)) settings.dirs = obj.dirs;
+    if(obj.ignore){
+      const {files, dirs} = parseIgnoreText(obj.ignore);
+      settings.files = files;
+      settings.dirs = dirs;
+    }
   }catch{}
 }
 

@@ -90,3 +90,7 @@ html {
 
 .muted { color: var(--muted-color); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+.ignore-list .row {
+    margin-bottom: 0.25rem;
+}
