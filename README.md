@@ -1,15 +1,34 @@
-# neutralinojs-minimal
+# Syncer
 
-The default template for a Neutralinojs app. It's possible to use your favorite frontend framework by using [these steps](https://neutralino.js.org/docs/getting-started/using-frontend-libraries).
+**Syncer** — простая графическая оболочка для утилиты `robocopy`. Приложение позволяет предварительно просмотреть различия между двумя папками и выборочно копировать файлы.
 
-## Contributors
+## Возможности
 
-[![Contributors](https://contrib.rocks/image?repo=neutralinojs/neutralinojs-minimal)](https://github.com/neutralinojs/neutralinojs-minimal/graphs/contributors)
+- Предварительный анализ изменений с помощью `robocopy /L` с отображением статусов (New, Updated, OnlyInDst, Older).
+- Копирование всех файлов (`robocopy /MIR`) или только отмеченных.
+- Удаление лишних объектов в папке назначения.
+- Игнорирование указанных файлов и папок.
+- Сохранение путей и настроек между сессиями.
 
-## License
+## Установка и запуск
+
+1. Установите [Neutralinojs CLI](https://neutralino.js.org/docs/cli/install):
+   ```bash
+   npm install -g @neutralinojs/neu
+   ```
+2. Запустите приложение в режиме разработки:
+   ```bash
+   neu run
+   ```
+3. Для создания автономного бинарника выполните:
+   ```bash
+   neu build --release
+   ```
+
+## Требования
+
+- Windows с доступными `robocopy` и PowerShell.
+
+## Лицензия
 
 [MIT](LICENSE)
-
-## Icon credits
-
-- `trayIcon.png` - Made by [Freepik](https://www.freepik.com) and downloaded from [Flaticon](https://www.flaticon.com)
