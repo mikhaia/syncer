@@ -14,7 +14,7 @@
       <h3 class="col-8">Syncer — менеджер синхронизации файлов и папок</h3>
       <div class="col-2 text-right">
         <button id="btnSettings" title="Настройки"><span class="material-icons">settings</span></button>
-        <button id="btnExit" title="Закрыть" class="secondary"><span class="material-icons">close</span></button>
+        <button id="btnExit" title="Закрыть" class="contrast"><span class="material-icons">close</span></button>
       </div>
     </div>
 
@@ -32,20 +32,20 @@
     </div>
 
     <div class="row">
-      <select id="selPreset" class="m-0"></select>
+      <select id="selPreset" class="m-0 col-8"></select>
       <button id="btnSavePreset" class="icon-btn">Сохранить пресет</button>
     </div>
 
     <div class="row">
       <button id="btnPreview">Предпросмотр</button>
-      <button id="btnCopyAll">Копировать всё (robocopy /MIR)</button>
-      <button id="btnCopySel">Копировать отмеченные</button>
+      <button id="btnCopyAll" class="outline">Копировать всё (robocopy /MIR)</button>
+      <button id="btnCopySel" class="secondary">Копировать отмеченные</button>
       <span id="hint" class="muted"></span>
     </div>
 
     <div class="row">
-      <label><input id="chkShowExtra" type="checkbox" checked /> показывать «лишние» (OnlyInDst)</label>
-      <label><input id="chkShowOlder" type="checkbox" /> показывать «Older»</label>
+      <label><input id="chkShowExtra" type="checkbox" checked /> показывать которые есть только в DST</label>
+      <label><input id="chkShowOlder" type="checkbox" /> показывать которые новее</label>
     </div>
 
     <table id="tbl" class="striped">
@@ -63,23 +63,26 @@
     <pre id="log" class="mono muted"></pre>
   </main>
   <dialog id="dlgSettings">
+    <div>
     <h3>Настройки</h3>
-    <label>Игнорируемые файлы:</label>
+    <label><b>Игнорируемые файлы:</b></label>
     <div id="lstIgnoreFiles" class="ignore-list"></div>
     <div class="row">
       <input id="txtIgnoreFile" type="text" placeholder="package-lock.json" class="m-0" />
       <button id="btnAddIgnoreFile" class="icon-btn"><span class="material-icons">add</span></button>
     </div>
-    <label>Игнорируемые папки:</label>
+    <br>
+    <label><b>Игнорируемые папки:</b></label>
     <div id="lstIgnoreDirs" class="ignore-list"></div>
     <div class="row">
       <input id="txtIgnoreDir" type="text" placeholder="node_modules" class="m-0" />
       <button id="btnAddIgnoreDir" class="icon-btn"><span class="material-icons">add</span></button>
     </div>
-    <menu>
+    <nav>
       <button id="btnSaveSettings" class="primary">Сохранить</button>
-      <button onclick="this.closest('dialog').close()">Закрыть</button>
-    </menu>
+      <button onclick="this.closest('dialog').close()" class="contrast">Закрыть</button>
+    </nav>
+    </div>
   </dialog>
   <script src="js/neutralino.js"></script>
   <script src="js/app.js"></script>

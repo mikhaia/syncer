@@ -1,11 +1,3 @@
-/*// 🧡 Простой и чистый код
-
-NL_ON('ready', async () => {
-  // автозаполнение путей из последней сессии
-  loadSession();
-  await loadSettings();
-});
-*/
 Neutralino.init();
 
 Neutralino.events.on("ready", async () => {

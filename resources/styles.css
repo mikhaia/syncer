@@ -51,6 +51,8 @@ html {
 }
 
 .text-right { text-align: right; }
+.text-center { text-align: center; }
+.text-left { text-align: left; }
 
 .topbar {
     display: flex;
@@ -93,4 +95,6 @@ html {
 
 .ignore-list .row {
     margin-bottom: 0.25rem;
+    padding-top: 0.25rem;
+    border-top: 1px dashed #ccc;
 }
