@@ -107,36 +107,30 @@ async function parseRobocopy(lines, src, dst) {
   // "Older             C:\src\path\file.txt"
   // "Extra File        C:\dst\path\file.txt"
   const out = [];
-  const rx = /^(New File|Newer|Older|Extra File)\s+(.*)$/i;
+  // строки могут начинаться со звёздочки и содержать размер файла
+  const rx = /^\*?(New File|Newer|Older|Extra File)\s+(?:([0-9]+)\s+)?(.+)$/i;
 
   for (const ln of lines) {
     const m = ln.match(rx);
     if (!m) continue;
     const tag = m[1];
-    const full = m[2];
+    const size = parseInt(m[2] || '0', 10);
+    const full = m[3];
 
-    if (tag === 'Extra File') {
+    if (tag.toLowerCase() === 'extra file') {
       const rel = toRel(full, dst);
-      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false });
-    } else if (tag === 'New File') {
+      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, size });
+    } else if (tag.toLowerCase() === 'new file') {
       const rel = toRel(full, src);
-      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true });
-    } else if (tag === 'Newer') {
+      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, size });
+    } else if (tag.toLowerCase() === 'newer') {
       const rel = toRel(full, src);
-      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true });
-    } else if (tag === 'Older') {
+      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, size });
+    } else if (tag.toLowerCase() === 'older') {
       const rel = toRel(full, src);
-      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false });
+      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, size });
     }
   }
-  await Promise.all(out.map(async r => {
-    try {
-      const st = await Neutralino.filesystem.getStats(r.abs);
-      r.size = st.size;
-    } catch {
-      r.size = 0;
-    }
-  }));
   return out.sort((a,b) => (a.status+b.rel).localeCompare(b.status+b.rel));
 }
 
