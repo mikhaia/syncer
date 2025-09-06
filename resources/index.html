@@ -14,7 +14,7 @@
       <h3 class="col-8">Syncer — менеджер синхронизации файлов и папок</h3>
       <div class="col-2 text-right">
         <button id="btnSettings" title="Настройки"><span class="material-icons">settings</span></button>
-        <button id="btnExit" title="Выход"><span class="material-icons">logout</span></button>
+        <button id="btnExit" title="Закрыть" class="secondary"><span class="material-icons">close</span></button>
       </div>
     </div>
 
@@ -64,8 +64,18 @@
   </main>
   <dialog id="dlgSettings">
     <h3>Настройки</h3>
-    <label>Игнорируемые файлы и папки (через запятую):</label>
-    <input id="txtIgnore" type="text" placeholder="package-lock.json,yarn.lock,.husky" />
+    <label>Игнорируемые файлы:</label>
+    <div id="lstIgnoreFiles" class="ignore-list"></div>
+    <div class="row">
+      <input id="txtIgnoreFile" type="text" placeholder="package-lock.json" class="m-0" />
+      <button id="btnAddIgnoreFile" class="icon-btn"><span class="material-icons">add</span></button>
+    </div>
+    <label>Игнорируемые папки:</label>
+    <div id="lstIgnoreDirs" class="ignore-list"></div>
+    <div class="row">
+      <input id="txtIgnoreDir" type="text" placeholder="node_modules" class="m-0" />
+      <button id="btnAddIgnoreDir" class="icon-btn"><span class="material-icons">add</span></button>
+    </div>
     <menu>
       <button id="btnSaveSettings" class="primary">Сохранить</button>
       <button onclick="this.closest('dialog').close()">Закрыть</button>

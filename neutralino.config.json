@@ -19,7 +19,8 @@
     "debug.log",
     "os.execCommand",
     "filesystem.*",
-    "window.*"
+    "window.*",
+    "storage.*"
   ],
   "globalVariables": {
     "TEST1": "Hello",
