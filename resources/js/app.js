@@ -163,7 +163,7 @@ function renderTable() {
 
     const tdSize = document.createElement('td');
     tdSize.className = 'text-right';
-    tdSize.textContent = Math.round(r.size / 1024);
+    tdSize.textContent = formatKB(r.size);
 
     tr.appendChild(tdSel);
     tr.appendChild(tdStatus);
@@ -220,6 +220,9 @@ async function copySelected() {
 function setAllSelected(v){ rows.forEach(r => r.selected = v); renderTable(); }
 
 // ===== Helpers =====
+function formatKB(bytes){
+  return (bytes / 1024).toFixed(2).replace('.', ',') + ' Кб';
+}
 function norm(p){ return (p || '').replace(/\//g, '\\').replace(/[\\]+$/,''); }
 function winPath(p){ return p.replace(/\//g,'\\'); }
 function join(a,b){ return a.replace(/[\\\/]+$/,'') + '\\' + b.replace(/^[\\\/]+/,''); }
