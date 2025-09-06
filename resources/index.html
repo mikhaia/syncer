@@ -5,61 +5,49 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>RoboGUI — preview & copy</title>
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 16px; }
-    .row { display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap; }
-    input[type=text]{ width: 420px; padding:8px; }
-    button { padding:8px 12px; cursor:pointer; }
-    table { width:100%; border-collapse:collapse; margin-top:12px; }
-    th, td { padding:8px; border-bottom:1px solid #eee; text-align:left; }
-    .status{ font-size:12px; padding:2px 6px; border-radius:4px; background:#eee; }
-    .New { background:#dff5d8; }
-    .Updated { background:#fff0c2; }
-    .OnlyInDst { background:#f8d7da; }
-    .older { background:#e2e3ff; }
-    .muted{ color:#666; }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  </style>
+  <link rel="stylesheet" href="pico.min.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <h3>RoboGUI — визуальный предпросмотр robocopy</h3>
+  <main class="container">
+    <h3>RoboGUI — визуальный предпросмотр robocopy</h3>
 
-  <div class="row">
-    <label>Source:</label>
-    <input id="src" type="text" placeholder="C:\\Users\\you\\work\\project" />
-    <label>Dest:</label>
-    <input id="dst" type="text" placeholder="D:\\mirror\\project" />
-  </div>
+    <div class="row">
+      <label>Source:</label>
+      <input id="src" type="text" placeholder="C:\\Users\\you\\work\\project" />
+      <label>Dest:</label>
+      <input id="dst" type="text" placeholder="D:\\mirror\\project" />
+    </div>
 
-  <div class="row">
-    <label>Исключения (через запятую):</label>
-    <input id="exclude" type="text" value="package-lock.json,yarn.lock,.husky" />
-    <button id="btnPreview">Предпросмотр</button>
-    <button id="btnCopyAll">Копировать всё (robocopy /MIR)</button>
-    <button id="btnCopySel">Копировать отмеченные</button>
-    <span id="hint" class="muted"></span>
-  </div>
+    <div class="row">
+      <label>Исключения (через запятую):</label>
+      <input id="exclude" type="text" value="package-lock.json,yarn.lock,.husky" />
+      <button id="btnPreview">Предпросмотр</button>
+      <button id="btnCopyAll">Копировать всё (robocopy /MIR)</button>
+      <button id="btnCopySel">Копировать отмеченные</button>
+      <span id="hint" class="muted"></span>
+    </div>
 
-  <div class="row">
-    <label><input id="chkShowExtra" type="checkbox" checked /> показывать «лишние» (OnlyInDst)</label>
-    <label><input id="chkShowOlder" type="checkbox" /> показывать «Older»</label>
-    <label><input id="chkSelectAll" type="checkbox" checked /> выделить всё</label>
-  </div>
+    <div class="row">
+      <label><input id="chkShowExtra" type="checkbox" checked /> показывать «лишние» (OnlyInDst)</label>
+      <label><input id="chkShowOlder" type="checkbox" /> показывать «Older»</label>
+      <label><input id="chkSelectAll" type="checkbox" checked /> выделить всё</label>
+    </div>
 
-  <table id="tbl">
-    <thead>
-      <tr>
-        <th style="width:28px"></th>
-        <th style="width:120px">Статус</th>
-        <th>Путь</th>
-      </tr>
-    </thead>
-    <tbody id="tbody"></tbody>
-  </table>
+    <table id="tbl" class="striped">
+      <thead>
+        <tr>
+          <th style="width:28px"></th>
+          <th style="width:120px">Статус</th>
+          <th>Путь</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
 
-  <pre id="log" class="mono muted"></pre>
-
-  <script src="/resources/neutralino.js"></script>
-  <script src="/resources/app.js"></script>
+    <pre id="log" class="mono muted"></pre>
+  </main>
+  <script src="js/neutralino.js"></script>
+  <script src="js/app.js"></script>
 </body>
 </html>
