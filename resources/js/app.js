@@ -4,6 +4,7 @@ Neutralino.events.on("ready", async () => {
   loadSession();
   await loadSettings();
   await loadPresets();
+  await loadTheme();
 });
 
 const els = {
@@ -31,12 +32,14 @@ const els = {
   btnSavePreset: document.getElementById('btnSavePreset'),
   tbody: document.getElementById('tbody'),
   log: document.getElementById('log'),
-  hint: document.getElementById('hint')
+  hint: document.getElementById('hint'),
+  btnTheme: document.getElementById('btnTheme')
 };
 
 let rows = []; // [{status, rel, abs, size, from:'src'|'dst', selected}]
 let settings = { files: [], dirs: [] };
 let presets = [];
+let theme = 'light';
 
 els.btnPreview.onclick = preview;
 els.btnCopyAll.onclick = copyAll;
@@ -57,6 +60,7 @@ els.btnSettings.onclick = () => {
   renderIgnoreLists();
   els.dlgSettings.showModal();
 };
+els.btnTheme.onclick = toggleTheme;
 els.btnSaveSettings.onclick = async () => {
   await saveSettings();
   els.dlgSettings.close();
@@ -200,15 +204,15 @@ async function copySelected() {
     if (it.status === 'OnlyInDst') {
       const target = winPath(join(dst, it.rel));
       const del = `powershell -NoProfile -Command "if(Test-Path -LiteralPath '${psq(target)}'){ Remove-Item -LiteralPath '${psq(target)}' -Force }"`;
-      log(`> ${del}\n`);
       await Neutralino.os.execCommand(del);
+      log(`файл ${target} удалён\n`);
     } else {
       const srcFile = winPath(join(src, it.rel));
       const dstFile = winPath(join(dst, it.rel));
       const dstDir = winPath(dirOf(dstFile));
       const cmd = `powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '${psq(dstDir)}' | Out-Null; Copy-Item -LiteralPath '${psq(srcFile)}' -Destination '${psq(dstFile)}' -Force"`;
-      log(`> ${cmd}\n`);
       await Neutralino.os.execCommand(cmd);
+      log(`файл ${srcFile} скопирован в ${dstFile}\n`);
     }
   }
   toast('Готово ✨');
@@ -280,6 +284,7 @@ function parseIgnoreText(text){
 }
 function log(s){ els.log.textContent += s; els.log.scrollTop = els.log.scrollHeight; }
 function hint(s){ els.hint.textContent = s; }
+function toast(msg){ Neutralino.os.showMessageBox('Syncer', msg); }
 async function saveSession(src,dst){
   try{ await Neutralino.storage.setData('robogui', JSON.stringify({src,dst,ts:Date.now()})); }catch{}
 }
@@ -342,4 +347,25 @@ function renderPresets(){
     opt.textContent = `${p.src} ➜ ${p.dst}`;
     els.selPreset.appendChild(opt);
   });
+}
+
+async function loadTheme(){
+  try{
+    const t = await Neutralino.storage.getData('robogui_theme');
+    if(t) theme = t;
+  }catch{}
+  applyTheme();
+}
+
+async function toggleTheme(){
+  theme = theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  try{ await Neutralino.storage.setData('robogui_theme', theme); }catch{}
+}
+
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme', theme);
+  els.btnTheme.innerHTML = theme === 'dark'
+    ? '<span class="material-icons">light_mode</span>'
+    : '<span class="material-icons">dark_mode</span>';
 }
