@@ -11,6 +11,7 @@ Neutralino.init();
 Neutralino.events.on("ready", async () => {
   loadSession();
   await loadSettings();
+  await loadPresets();
 });
 
 const els = {
@@ -29,13 +30,16 @@ const els = {
   chkShowExtra: document.getElementById('chkShowExtra'),
   chkShowOlder: document.getElementById('chkShowOlder'),
   chkSelectAll: document.getElementById('chkSelectAll'),
+  selPreset: document.getElementById('selPreset'),
+  btnSavePreset: document.getElementById('btnSavePreset'),
   tbody: document.getElementById('tbody'),
   log: document.getElementById('log'),
   hint: document.getElementById('hint')
 };
 
-let rows = []; // [{status, rel, abs, from:'src'|'dst', selected}]
+let rows = []; // [{status, rel, abs, size, from:'src'|'dst', selected}]
 let settings = { ignore: '' };
+let presets = [];
 
 els.btnPreview.onclick = preview;
 els.btnCopyAll.onclick = copyAll;
@@ -43,6 +47,14 @@ els.btnCopySel.onclick = copySelected;
 els.chkSelectAll.onchange = () => setAllSelected(els.chkSelectAll.checked);
 els.chkShowExtra.onchange = renderTable;
 els.chkShowOlder.onchange = renderTable;
+els.btnSavePreset.onclick = savePreset;
+els.selPreset.onchange = () => {
+  const i = parseInt(els.selPreset.value, 10);
+  if (!isNaN(i) && presets[i]) {
+    els.src.value = presets[i].src;
+    els.dst.value = presets[i].dst;
+  }
+};
 els.btnExit.onclick = () => Neutralino.app.exit();
 els.btnSettings.onclick = () => {
   els.txtIgnore.value = settings.ignore;
@@ -80,7 +92,7 @@ async function preview() {
   console.log(r.stdOut);
   const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
-  rows = parseRobocopy(lines, src, dst).filter(x => !isExcluded(x.rel, excl));
+  rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel, excl));
   // по умолчанию выделяем только New/Updated
   rows.forEach(x => x.selected = (x.status === 'New' || x.status === 'Updated'));
   els.chkSelectAll.checked = true;
@@ -88,33 +100,35 @@ async function preview() {
   hint(`Найдено: ${rows.length}. Отмечены к копированию: ${rows.filter(x=>x.selected).length}`);
 }
 
-function parseRobocopy(lines, src, dst) {
+async function parseRobocopy(lines, src, dst) {
   // Примеры строк:
   // "New File          C:\src\path\file.txt"
   // "Newer             C:\src\path\file.txt"
   // "Older             C:\src\path\file.txt"
   // "Extra File        C:\dst\path\file.txt"
   const out = [];
-  const rx = /^(New File|Newer|Older|Extra File)\s+(.*)$/i;
+  // строки могут начинаться со звёздочки и содержать размер файла
+  const rx = /^\*?(New File|Newer|Older|Extra File)\s+(?:([0-9]+)\s+)?(.+)$/i;
 
   for (const ln of lines) {
     const m = ln.match(rx);
     if (!m) continue;
     const tag = m[1];
-    const full = m[2];
+    const size = parseInt(m[2] || '0', 10);
+    const full = m[3];
 
-    if (tag === 'Extra File') {
+    if (tag.toLowerCase() === 'extra file') {
       const rel = toRel(full, dst);
-      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false });
-    } else if (tag === 'New File') {
+      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, size });
+    } else if (tag.toLowerCase() === 'new file') {
       const rel = toRel(full, src);
-      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true });
-    } else if (tag === 'Newer') {
+      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, size });
+    } else if (tag.toLowerCase() === 'newer') {
       const rel = toRel(full, src);
-      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true });
-    } else if (tag === 'Older') {
+      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, size });
+    } else if (tag.toLowerCase() === 'older') {
       const rel = toRel(full, src);
-      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false });
+      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, size });
     }
   }
   return out.sort((a,b) => (a.status+b.rel).localeCompare(b.status+b.rel));
@@ -147,9 +161,14 @@ function renderTable() {
     const tdPath = document.createElement('td');
     tdPath.textContent = r.rel;
 
+    const tdSize = document.createElement('td');
+    tdSize.className = 'text-right';
+    tdSize.textContent = formatKB(r.size);
+
     tr.appendChild(tdSel);
     tr.appendChild(tdStatus);
     tr.appendChild(tdPath);
+    tr.appendChild(tdSize);
     els.tbody.appendChild(tr);
   }
 }
@@ -201,6 +220,9 @@ async function copySelected() {
 function setAllSelected(v){ rows.forEach(r => r.selected = v); renderTable(); }
 
 // ===== Helpers =====
+function formatKB(bytes){
+  return (bytes / 1024).toFixed(2) + ' Кб';
+}
 function norm(p){ return (p || '').replace(/\//g, '\\').replace(/[\\]+$/,''); }
 function winPath(p){ return p.replace(/\//g,'\\'); }
 function join(a,b){ return a.replace(/[\\\/]+$/,'') + '\\' + b.replace(/^[\\\/]+/,''); }
@@ -253,4 +275,34 @@ async function saveSettings(){
   try{
     await Neutralino.storage.setData('robogui_settings', JSON.stringify(settings));
   }catch{}
+}
+
+async function loadPresets(){
+  try{
+    const s = await Neutralino.storage.getData('robogui_presets');
+    if(s) presets = JSON.parse(s);
+  }catch{}
+  renderPresets();
+}
+
+async function savePreset(){
+  const src = norm(els.src.value);
+  const dst = norm(els.dst.value);
+  if(!src || !dst) return toast("Укажи SRC и DST 💛");
+  presets.push({src,dst});
+  try{
+    await Neutralino.storage.setData('robogui_presets', JSON.stringify(presets));
+  }catch{}
+  renderPresets();
+  toast('Пресет сохранён ✨');
+}
+
+function renderPresets(){
+  els.selPreset.innerHTML = '<option value="">-- пресеты --</option>';
+  presets.forEach((p,i) => {
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = `${p.src} ➜ ${p.dst}`;
+    els.selPreset.appendChild(opt);
+  });
 }
