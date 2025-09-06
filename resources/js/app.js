@@ -37,7 +37,7 @@ const els = {
   btnTheme: document.getElementById('btnTheme')
 };
 
-let rows = []; // [{status, rel, abs, size, from:'src'|'dst', selected}]
+let rows = []; // [{status, rel, abs, from:'src'|'dst', selected, oldSize, newSize}]
 let settings = { files: [], dirs: [] };
 let presets = [];
 let theme = 'light';
@@ -121,22 +121,32 @@ async function parseRobocopy(lines, src, dst) {
   for (const ln of lines) {
     const m = ln.match(rx);
     if (!m) continue;
-    const tag = m[1];
+    const tag = m[1].toLowerCase();
     const size = parseInt(m[2] || '0', 10);
     const full = m[3];
 
-    if (tag.toLowerCase() === 'extra file') {
+    if (tag === 'extra file') {
       const rel = toRel(full, dst);
-      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, size });
-    } else if (tag.toLowerCase() === 'new file') {
+      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, oldSize: size, newSize: 0 });
+    } else if (tag === 'new file') {
       const rel = toRel(full, src);
-      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, size });
-    } else if (tag.toLowerCase() === 'newer') {
+      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, oldSize: 0, newSize: size });
+    } else if (tag === 'newer') {
       const rel = toRel(full, src);
-      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, size });
-    } else if (tag.toLowerCase() === 'older') {
+      let oldSize = 0;
+      try {
+        const st = await Neutralino.filesystem.getStats(join(dst, rel));
+        oldSize = st.size;
+      } catch (e) {}
+      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, oldSize, newSize: size });
+    } else if (tag === 'older') {
       const rel = toRel(full, src);
-      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, size });
+      let newSize = 0;
+      try {
+        const st = await Neutralino.filesystem.getStats(join(dst, rel));
+        newSize = st.size;
+      } catch (e) {}
+      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, oldSize: size, newSize });
     }
   }
   return out.sort((a,b) => (a.status+b.rel).localeCompare(b.status+b.rel));
@@ -169,14 +179,19 @@ function renderTable() {
     const tdPath = document.createElement('td');
     tdPath.textContent = r.rel;
 
-    const tdSize = document.createElement('td');
-    tdSize.className = 'text-right';
-    tdSize.textContent = formatKB(r.size);
+    const tdOldSize = document.createElement('td');
+    tdOldSize.className = 'text-right';
+    tdOldSize.textContent = formatKB(r.oldSize);
+
+    const tdNewSize = document.createElement('td');
+    tdNewSize.className = 'text-right';
+    tdNewSize.textContent = formatKB(r.newSize);
 
     tr.appendChild(tdSel);
     tr.appendChild(tdStatus);
     tr.appendChild(tdPath);
-    tr.appendChild(tdSize);
+    tr.appendChild(tdOldSize);
+    tr.appendChild(tdNewSize);
     els.tbody.appendChild(tr);
   }
 }
