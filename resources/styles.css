@@ -1,20 +1,26 @@
-body {
-    background-color: white;
+/* Custom styles for RoboGUI */
+.row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
 }
 
-#neutralinoapp {
-    text-align: center;
-    -webkit-user-select: none;
-    user-select: none;
-    cursor: default;
+.row input[type=text] {
+    flex: 1;
 }
 
-#neutralinoapp h1{
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    font-size: 20px;
+.status {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 0.25rem;
 }
 
-#neutralinoapp > div {
-    font-size: 16px;
-    font-weight: normal;
-}
+.status.New { background: #dff5d8; }
+.status.Updated { background: #fff0c2; }
+.status.OnlyInDst { background: #f8d7da; }
+.status.older { background: #e2e3ff; }
+
+.muted { color: var(--muted-color); }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
