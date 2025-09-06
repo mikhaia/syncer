@@ -72,10 +72,12 @@ async function preview() {
   const excl = parseExclude(settings.ignore);
   // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
   // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
-  const cmd = `robocopy "${src}" "${dst}" /L /MIR /S /NJH /NJS /FP /NDL`;
-  log(`> ${cmd}\n`);
-
-  const r = await Neutralino.os.execCommand(cmd);
+  const ps = `powershell -NoProfile -Command `
+  + `"$OutputEncoding=[Text.UTF8Encoding]::new(); `
+  + `[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); `
+  + `robocopy '${src}' '${dst}' /L /MIR /S /NJH /NJS /FP /NDL"`;
+  const r = await Neutralino.os.execCommand(ps);
+  console.log(r.stdOut);
   const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
 
   rows = parseRobocopy(lines, src, dst).filter(x => !isExcluded(x.rel, excl));
