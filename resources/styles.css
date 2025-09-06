@@ -85,10 +85,10 @@ html {
     border-radius: 0.25rem;
 }
 
-.status.New { background: #dff5d8; }
-.status.Updated { background: #fff0c2; }
-.status.OnlyInDst { background: #f8d7da; }
-.status.older { background: #e2e3ff; }
+.status.New { background: #dff5d8; color: #000; }
+.status.Updated { background: #fff0c2; color: #000; }
+.status.OnlyInDst { background: #f8d7da; color: #000; }
+.status.older { background: #e2e3ff; color: #000; }
 
 .muted { color: var(--muted-color); }
 .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
