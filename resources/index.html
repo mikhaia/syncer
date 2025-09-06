@@ -32,6 +32,11 @@
     </div>
 
     <div class="row">
+      <select id="selPreset" class="m-0"></select>
+      <button id="btnSavePreset" class="icon-btn">Сохранить пресет</button>
+    </div>
+
+    <div class="row">
       <button id="btnPreview">Предпросмотр</button>
       <button id="btnCopyAll">Копировать всё (robocopy /MIR)</button>
       <button id="btnCopySel">Копировать отмеченные</button>
@@ -41,15 +46,15 @@
     <div class="row">
       <label><input id="chkShowExtra" type="checkbox" checked /> показывать «лишние» (OnlyInDst)</label>
       <label><input id="chkShowOlder" type="checkbox" /> показывать «Older»</label>
-      <label><input id="chkSelectAll" type="checkbox" checked /> выделить всё</label>
     </div>
 
     <table id="tbl" class="striped">
       <thead>
         <tr>
-          <th style="width:28px"></th>
+          <th style="width:28px"><input id="chkSelectAll" type="checkbox" checked /></th>
           <th style="width:120px">Статус</th>
           <th>Путь</th>
+          <th style="width:80px">Размер, КБ</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
