@@ -37,7 +37,7 @@ const els = {
   btnTheme: document.getElementById('btnTheme')
 };
 
-let rows = []; // [{status, rel, abs, size, from:'src'|'dst', selected}]
+let rows = []; // [{status, rel, abs, sizeSrc, sizeDst, from:'src'|'dst', selected}]
 let settings = { files: [], dirs: [] };
 let presets = [];
 let theme = 'light';
@@ -127,18 +127,34 @@ async function parseRobocopy(lines, src, dst) {
 
     if (tag.toLowerCase() === 'extra file') {
       const rel = toRel(full, dst);
-      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, size });
+      out.push({ status: 'OnlyInDst', rel, abs: full, from: 'dst', selected: false, sizeSrc: 0, sizeDst: size });
     } else if (tag.toLowerCase() === 'new file') {
       const rel = toRel(full, src);
-      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, size });
+      out.push({ status: 'New', rel, abs: full, from: 'src', selected: true, sizeSrc: size, sizeDst: 0 });
     } else if (tag.toLowerCase() === 'newer') {
       const rel = toRel(full, src);
-      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, size });
+      out.push({ status: 'Updated', rel, abs: full, from: 'src', selected: true, sizeSrc: size, sizeDst: 0 });
     } else if (tag.toLowerCase() === 'older') {
       const rel = toRel(full, src);
-      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, size });
+      out.push({ status: 'Older', rel, abs: full, from: 'src', selected: false, sizeSrc: size, sizeDst: 0 });
     }
   }
+
+  for (const r of out) {
+    if (!r.sizeSrc) {
+      try {
+        const st = await Neutralino.filesystem.getStats(winPath(join(src, r.rel)));
+        r.sizeSrc = st.size;
+      } catch { r.sizeSrc = 0; }
+    }
+    if (!r.sizeDst) {
+      try {
+        const st = await Neutralino.filesystem.getStats(winPath(join(dst, r.rel)));
+        r.sizeDst = st.size;
+      } catch { r.sizeDst = 0; }
+    }
+  }
+
   return out.sort((a,b) => (a.status+b.rel).localeCompare(b.status+b.rel));
 }
 
@@ -169,14 +185,19 @@ function renderTable() {
     const tdPath = document.createElement('td');
     tdPath.textContent = r.rel;
 
-    const tdSize = document.createElement('td');
-    tdSize.className = 'text-right';
-    tdSize.textContent = formatKB(r.size);
+    const tdSizeSrc = document.createElement('td');
+    tdSizeSrc.className = 'text-right';
+    tdSizeSrc.textContent = formatKB(r.sizeSrc);
+
+    const tdSizeDst = document.createElement('td');
+    tdSizeDst.className = 'text-right';
+    tdSizeDst.textContent = formatKB(r.sizeDst);
 
     tr.appendChild(tdSel);
     tr.appendChild(tdStatus);
     tr.appendChild(tdPath);
-    tr.appendChild(tdSize);
+    tr.appendChild(tdSizeSrc);
+    tr.appendChild(tdSizeDst);
     els.tbody.appendChild(tr);
   }
 }
