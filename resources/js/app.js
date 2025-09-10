@@ -188,6 +188,11 @@ function renderTable() {
     const tdSizeSrc = document.createElement('td');
     tdSizeSrc.className = 'text-right';
     tdSizeSrc.textContent = formatKB(r.sizeSrc);
+    if (r.sizeSrc > r.sizeDst) {
+      tdSizeSrc.style.color = 'green';
+    } else if (r.sizeSrc < r.sizeDst) {
+      tdSizeSrc.style.color = 'red';
+    }
 
     const tdSizeDst = document.createElement('td');
     tdSizeDst.className = 'text-right';
