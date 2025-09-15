@@ -85,10 +85,9 @@ els.btnDstBrowse.onclick = async () => {
 async function detectTool(){
   try{
     if(NL_OS === 'Windows')
-      await Neutralino.os.execCommand('where robocopy');
+      hasRobocopy = true;
     else
-      await Neutralino.os.execCommand('command -v robocopy');
-    hasRobocopy = true;
+      hasRobocopy = false;
   }catch{ hasRobocopy = false; }
 }
 
