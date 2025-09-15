@@ -5,6 +5,7 @@ Neutralino.events.on("ready", async () => {
   await loadSettings();
   await loadPresets();
   await loadTheme();
+  await detectTool();
 });
 
 const els = {
@@ -41,6 +42,7 @@ let rows = []; // [{status, rel, abs, sizeSrc, sizeDst, from:'src'|'dst', select
 let settings = { files: [], dirs: [] };
 let presets = [];
 let theme = 'light';
+let hasRobocopy = false;
 
 els.btnPreview.onclick = preview;
 els.btnCopyAll.onclick = copyAll;
@@ -80,6 +82,16 @@ els.btnDstBrowse.onclick = async () => {
   if (p) els.dst.value = p;
 };
 
+async function detectTool(){
+  try{
+    if(NL_OS === 'Windows')
+      await Neutralino.os.execCommand('where robocopy');
+    else
+      await Neutralino.os.execCommand('command -v robocopy');
+    hasRobocopy = true;
+  }catch{ hasRobocopy = false; }
+}
+
 async function preview() {
   const src = norm(els.src.value);
   const dst = norm(els.dst.value);
@@ -87,17 +99,22 @@ async function preview() {
   await saveSession(src, dst);
   showProgress('indeterminate');
   try {
-    // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
-    // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
-    const ps = `powershell -NoProfile -Command `
-    + `"$OutputEncoding=[Text.UTF8Encoding]::new(); `
-    + `[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); `
-    + `robocopy '${src}' '${dst}' /L /MIR /S /NJH /NJS /FP /NDL"`;
-    const r = await Neutralino.os.execCommand(ps);
-    console.log(r.stdOut);
-    const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-    rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel));
+    if(hasRobocopy){
+      // /L — только список, /MIR — чтобы показать Extra File, /S — подкаталоги
+      // /NJH /NJS — без шапки/итогов, /FP — полный путь, /NDL — без директорий
+      const ps = `powershell -NoProfile -Command `
+        + `"$OutputEncoding=[Text.UTF8Encoding]::new(); `
+        + `[Console]::OutputEncoding=[Text.UTF8Encoding]::new(); `
+        + `robocopy '${src}' '${dst}' /L /MIR /S /NJH /NJS /FP /NDL"`;
+      const r = await Neutralino.os.execCommand(ps);
+      const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      rows = (await parseRobocopy(lines, src, dst)).filter(x => !isExcluded(x.rel));
+    }else{
+      const cmd = `rsync -ain --delete ${q(src)}/ ${q(dst)}/`;
+      const r = await Neutralino.os.execCommand(cmd);
+      const lines = r.stdOut.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      rows = (await parseRsync(lines, src, dst)).filter(x => !isExcluded(x.rel));
+    }
     // по умолчанию выделяем только New/Updated
     rows.forEach(x => x.selected = (x.status === 'New' || x.status === 'Updated'));
     els.chkSelectAll.checked = true;
@@ -158,6 +175,33 @@ async function parseRobocopy(lines, src, dst) {
   return out.sort((a,b) => (a.status+b.rel).localeCompare(b.status+b.rel));
 }
 
+async function parseRsync(lines, src, dst){
+  const out = [];
+  const rxDel = /^\*deleting\s+(.+)$/i;
+  const rxChg = /^>f[^\s]*\s+(.+)$/i;
+  for(const ln of lines){
+    let m;
+    if(m = ln.match(rxDel)){
+      const rel = m[1];
+      out.push({ status:'OnlyInDst', rel, abs: join(dst, rel), from:'dst', selected:false, sizeSrc:0, sizeDst:0 });
+    }else if(m = ln.match(rxChg)){
+      const code = ln.slice(0,11);
+      const rel = ln.slice(12).trim();
+      const status = code.includes('+++++++++') ? 'New' : 'Updated';
+      out.push({ status, rel, abs: join(src, rel), from:'src', selected:true, sizeSrc:0, sizeDst:0 });
+    }
+  }
+  for(const r of out){
+    if(!r.sizeSrc){
+      try{ const st = await Neutralino.filesystem.getStats(winPath(join(src, r.rel))); r.sizeSrc = st.size; }catch{ r.sizeSrc = 0; }
+    }
+    if(!r.sizeDst){
+      try{ const st = await Neutralino.filesystem.getStats(winPath(join(dst, r.rel))); r.sizeDst = st.size; }catch{ r.sizeDst = 0; }
+    }
+  }
+  return out.sort((a,b)=>(a.status+b.rel).localeCompare(b.status+b.rel));
+}
+
 function renderTable() {
   const showExtra = els.chkShowExtra.checked;
   const showOlder = els.chkShowOlder.checked;
@@ -210,13 +254,17 @@ function renderTable() {
 async function copyAll() {
   const src = norm(els.src.value);
   const dst = norm(els.dst.value);
-  // Формируем /XF и /XD
-  const xf = settings.files.length ? (' /XF ' + settings.files.map(q).join(' ')) : '';
-  const xd = settings.dirs.length ? (' /XD ' + settings.dirs.map(q).join(' ')) : '';
-
-  const cmd = `robocopy "${src}" "${dst}" /MIR /R:1 /W:1 /MT:8 /NFL /NDL /NP${xf}${xd}`;
   showProgress('indeterminate');
   try {
+    let cmd = '';
+    if(hasRobocopy){
+      const xf = settings.files.length ? (' /XF ' + settings.files.map(q).join(' ')) : '';
+      const xd = settings.dirs.length ? (' /XD ' + settings.dirs.map(q).join(' ')) : '';
+      cmd = `robocopy ${q(src)} ${q(dst)} /MIR /R:1 /W:1 /MT:8 /NFL /NDL /NP${xf}${xd}`;
+    } else {
+      const ex = settings.files.map(f => `--exclude ${q(f)}`).concat(settings.dirs.map(d => `--exclude ${q(d)}`)).join(' ');
+      cmd = `rsync -a --delete ${ex} ${q(src)}/ ${q(dst)}/`;
+    }
     log(`> ${cmd}\n`);
     const r = await Neutralino.os.execCommand(cmd);
     log(r.stdOut || r.stdErr || 'done');
@@ -240,18 +288,34 @@ async function copySelected() {
   // - OnlyInDst: удаляем файл в DST
   try {
     for (const it of items) {
-      if (it.status === 'OnlyInDst') {
-        const target = winPath(join(dst, it.rel));
-        const del = `powershell -NoProfile -Command "if(Test-Path -LiteralPath '${psq(target)}'){ Remove-Item -LiteralPath '${psq(target)}' -Force }"`;
-        await Neutralino.os.execCommand(del);
-        log(`файл ${target} удалён\n`);
+      if (hasRobocopy) {
+        if (it.status === 'OnlyInDst') {
+          const target = winPath(join(dst, it.rel));
+          const del = `powershell -NoProfile -Command "if(Test-Path -LiteralPath '${psq(target)}'){ Remove-Item -LiteralPath '${psq(target)}' -Force }"`;
+          await Neutralino.os.execCommand(del);
+          log(`файл ${target} удалён\n`);
+        } else {
+          const srcFile = winPath(join(src, it.rel));
+          const dstFile = winPath(join(dst, it.rel));
+          const dstDir = winPath(dirOf(dstFile));
+          const cmd = `powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '${psq(dstDir)}' | Out-Null; Copy-Item -LiteralPath '${psq(srcFile)}' -Destination '${psq(dstFile)}' -Force"`;
+          await Neutralino.os.execCommand(cmd);
+          log(`файл ${srcFile} скопирован в ${dstFile}\n`);
+        }
       } else {
-        const srcFile = winPath(join(src, it.rel));
-        const dstFile = winPath(join(dst, it.rel));
-        const dstDir = winPath(dirOf(dstFile));
-        const cmd = `powershell -NoProfile -Command "New-Item -ItemType Directory -Force -Path '${psq(dstDir)}' | Out-Null; Copy-Item -LiteralPath '${psq(srcFile)}' -Destination '${psq(dstFile)}' -Force"`;
-        await Neutralino.os.execCommand(cmd);
-        log(`файл ${srcFile} скопирован в ${dstFile}\n`);
+        if (it.status === 'OnlyInDst') {
+          const target = join(dst, it.rel);
+          const del = `rm -f ${q(target)}`;
+          await Neutralino.os.execCommand(del);
+          log(`файл ${target} удалён\n`);
+        } else {
+          const srcFile = join(src, it.rel);
+          const dstFile = join(dst, it.rel);
+          const dstDir = dirOf(dstFile);
+          const cmd = `mkdir -p ${q(dstDir)} && cp -f ${q(srcFile)} ${q(dstFile)}`;
+          await Neutralino.os.execCommand(cmd);
+          log(`файл ${srcFile} скопирован в ${dstFile}\n`);
+        }
       }
       updateProgress(++done);
     }
@@ -267,11 +331,18 @@ function setAllSelected(v){ rows.forEach(r => r.selected = v); renderTable(); }
 function formatKB(bytes){
   return (bytes / 1024).toFixed(2) + ' Кб';
 }
-function norm(p){ return (p || '').replace(/\//g, '\\').replace(/[\\]+$/,''); }
-function winPath(p){ return p.replace(/\//g,'\\'); }
-function join(a,b){ return a.replace(/[\\\/]+$/,'') + '\\' + b.replace(/^[\\\/]+/,''); }
+function norm(p){
+  const sep = NL_OS === 'Windows' ? '\\' : '/';
+  const reTrail = NL_OS === 'Windows' ? /\\+$/ : /\/+$/;
+  return (p || '').replace(/[\\\/]/g, sep).replace(reTrail, '');
+}
+function winPath(p){ return NL_OS === 'Windows' ? p.replace(/\//g,'\\') : p; }
+function join(a,b){
+  const s = NL_OS === 'Windows' ? '\\' : '/';
+  return a.replace(/[\\\/]+$/,'') + s + b.replace(/^[\\\/]+/,'');
+}
 function dirOf(p){ return p.replace(/[\\\/][^\\\/]+$/,''); }
-function q(s){ return `"${s}"`; }
+function q(s){ return `"${s.replace(/"/g,'\\"')}"`; }
 function psq(s){ return s.replace(/'/g,"''"); }
 function toRel(full, root){
   const A = norm(full).toLowerCase();
@@ -280,9 +351,9 @@ function toRel(full, root){
   return full;
 }
 function isExcluded(rel){
-  const name = rel.split(/\\|\//).pop();
+  const name = rel.split(/[\\\/]/).pop();
   if (settings.files.includes(name)) return true;
-  const parts = rel.split(/\\|\//);
+  const parts = rel.split(/[\\\/]/);
   return parts.some(p => settings.dirs.includes(p));
 }
 function renderIgnoreLists(){
