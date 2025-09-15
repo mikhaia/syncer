@@ -184,8 +184,8 @@ async function parseRsync(lines, src, dst){
       const rel = m[1];
       out.push({ status:'OnlyInDst', rel, abs: join(dst, rel), from:'dst', selected:false, sizeSrc:0, sizeDst:0 });
     }else if(m = ln.match(rxChg)){
-      const code = ln.slice(0,11);
-      const rel = ln.slice(12).trim();
+      const code = m[0].slice(0,11);
+      const rel = m[1];
       const status = code.includes('+++++++++') ? 'New' : 'Updated';
       out.push({ status, rel, abs: join(src, rel), from:'src', selected:true, sizeSrc:0, sizeDst:0 });
     }
